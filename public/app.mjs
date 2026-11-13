@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+import { customerRegions } from "./customer-regions.mjs";
 
 const app = initializeApp({
   apiKey: "AIzaSyDArt35JrQw1_Re9UgLzUMC7MOOeCRP0AY",
@@ -15,12 +16,22 @@ const login = byId("login");
 const status = byId("status");
 const city = byId("city");
 const area = byId("area");
+const salesRegion = byId("sales-region");
+const mobile = matchMedia("(max-width: 767px) and (pointer: coarse)");
+const salesRegionKey = "todo-work.sales-region";
 const search = byId("search");
 const dashboard = byId("dashboard");
 let rows = [];
 let month = "";
 let areas = [];
 let stopListening;
+
+try {
+  salesRegion.value = localStorage.getItem(salesRegionKey) || "";
+} catch {
+  // The filter also works when browser storage is unavailable.
+}
+if (salesRegion.selectedIndex < 0) salesRegion.value = "";
 
 function options(select, values, allLabel, records, key) {
   const previous = select.value;
@@ -46,7 +57,9 @@ function render() {
   const cityRows = rows.filter(row => !city.value || row.city === city.value);
   options(area, sorted([...cityRows, ...areas.filter(row => !city.value || row.city === city.value)].map(row => row.area)), "全部區域", cityRows, "area");
   const query = search.value.trim().toLowerCase();
-  const visible = cityRows.filter(row => (!area.value || row.area === area.value)
+  const region = mobile.matches ? salesRegion.value : "";
+  const visible = cityRows.filter(row => (!region || customerRegions.get(String(row.code ?? "").trim().toUpperCase()) === region)
+    && (!area.value || row.area === area.value)
     && (row.code + " " + row.name).toLowerCase().includes(query));
   const ready = visible.filter(row => row.waiting === 0).length;
   const partial = visible.filter(row => row.ready > 0 && row.waiting > 0).length;
@@ -75,6 +88,15 @@ function render() {
 }
 
 for (const field of [city, area, search]) field.addEventListener("input", render);
+salesRegion.addEventListener("change", () => {
+  try {
+    localStorage.setItem(salesRegionKey, salesRegion.value);
+  } catch {
+    // Keep the current selection for this page.
+  }
+  render();
+});
+mobile.addEventListener("change", render);
 login.addEventListener("submit", async event => {
   event.preventDefault();
   const button = login.querySelector("button");

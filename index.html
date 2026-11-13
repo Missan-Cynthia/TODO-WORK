@@ -5,6 +5,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon.png">
 <style>
 *{box-sizing:border-box}body{font:16px system-ui,sans-serif;background:#f7f5f7;color:#2c2531;margin:0}main{max-width:780px;margin:auto;padding:24px 16px}h1{margin:0 0 12px}label{display:grid;gap:6px}form,.filters{display:grid;gap:12px}.filters{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}input,select,button{font:inherit;padding:10px;border:1px solid #bdb1bf;border-radius:8px;background:#fff;min-width:0}button{background:#5b3656;color:white;cursor:pointer}header{display:flex;justify-content:space-between;gap:10px;align-items:start}article,form{background:white;border:1px solid #e1d9e2;border-radius:12px;padding:16px;margin:10px 0}article p{margin:8px 0}summary{cursor:pointer}small{color:#645969}li{margin:6px 0}[hidden]{display:none!important}
+.sales-region{display:none}
+@media (max-width:767px) and (pointer:coarse){.sales-region{display:grid;grid-column:1/-1}}
 </style>
 <main>
 <header><h1>當月客戶到貨</h1><button id="logout" hidden>登出</button></header>
@@ -16,11 +18,17 @@
 </form>
 <section id="dashboard" hidden>
 <div class="filters">
+<label class="sales-region">業務區域<select id="sales-region">
+<option value="">全部業務區域</option>
+<option value="C">C</option>
+<option value="P">P</option>
+<option value="U">U</option>
+</select></label>
 <label>縣市<select id="city"></select></label>
 <label>行政區<select id="area"></select></label>
 <label>搜尋客戶<input id="search" type="search" placeholder="名稱或編號"></label>
 </div>
 <p id="counts"></p><div id="customers"></div>
 </section>
-</main><script type="module" src="./public/app.mjs?v=account-login"></script>
+</main><script type="module" src="./public/app.mjs?v=sales-region"></script>
 </html>
