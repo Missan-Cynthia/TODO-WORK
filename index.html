@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>當月客戶到貨</title>
+<link rel="icon" href="./public/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon.png">
+<style>
+*{box-sizing:border-box}body{font:16px system-ui,sans-serif;background:#f7f5f7;color:#2c2531;margin:0}main{max-width:780px;margin:auto;padding:24px 16px}h1{margin:0 0 12px}label{display:grid;gap:6px}form,.filters{display:grid;gap:12px}.filters{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}input,select,button{font:inherit;padding:10px;border:1px solid #bdb1bf;border-radius:8px;background:#fff;min-width:0}button{background:#5b3656;color:white;cursor:pointer}header{display:flex;justify-content:space-between;gap:10px;align-items:start}article,form{background:white;border:1px solid #e1d9e2;border-radius:12px;padding:16px;margin:10px 0}article p{margin:8px 0}summary{cursor:pointer}small{color:#645969}li{margin:6px 0}[hidden]{display:none!important}
+</style>
+<main>
+<header><h1>當月客戶到貨</h1><button id="logout" hidden>登出</button></header>
+<p id="status" role="status">連線中…</p>
+<form id="login" hidden>
+<label>電子郵件<input id="email" type="email" autocomplete="username" required></label>
+<label>密碼<input id="password" type="password" autocomplete="current-password" required></label>
+<button>登入</button>
+</form>
+<section id="dashboard" hidden>
+<div class="filters">
+<label>縣市<select id="city"></select></label>
+<label>行政區<select id="area"></select></label>
+<label>搜尋客戶<input id="search" type="search" placeholder="名稱或編號"></label>
+</div>
+<p id="counts"></p><div id="customers"></div>
+</section>
+</main><script type="module" src="./public/app.mjs"></script>
+</html>
