@@ -80,7 +80,14 @@ function render() {
     append(details, "summary", "地址與商品明細");
     append(details, "p", row.address || "地址待確認");
     const items = document.createElement("ul");
-    for (const item of row.items || []) append(items, "li", [item.spec, "數量 " + item.quantity, item.ready ? "已到貨" : "待到貨"].join(" · "));
+    for (const item of row.items || []) {
+      const line = append(items, "li", [item.spec, "數量 " + item.quantity, item.ready ? "已到貨" : "待到貨"].join(" · "));
+      if (mobile.matches && typeof item.note === "string" && item.note.trim()) {
+        const note = append(line, "div", "進貨單號／備註：" + item.note.trim());
+        note.style.whiteSpace = "pre-wrap";
+        note.style.overflowWrap = "anywhere";
+      }
+    }
     details.append(items);
     card.append(details);
     list.append(card);
