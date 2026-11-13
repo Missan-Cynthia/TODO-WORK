@@ -10,7 +10,7 @@
 <header><h1>當月客戶到貨</h1><button id="logout" hidden>登出</button></header>
 <p id="status" role="status">連線中…</p>
 <form id="login" hidden>
-<label>電子郵件<input id="email" type="email" autocomplete="username" required></label>
+<label>帳號<input id="account" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
 <label>密碼<input id="password" type="password" autocomplete="current-password" required></label>
 <button>登入</button>
 </form>
@@ -22,5 +22,5 @@
 </div>
 <p id="counts"></p><div id="customers"></div>
 </section>
-</main><script type="module" src="./app.mjs"></script>
+</main><script type="module" src="./app.mjs?v=account-login"></script>
 </html>

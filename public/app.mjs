@@ -80,7 +80,9 @@ login.addEventListener("submit", async event => {
   const button = login.querySelector("button");
   button.disabled = true;
   try {
-    await signInWithEmailAndPassword(auth, byId("email").value.trim(), byId("password").value);
+    const account = byId("account").value.trim();
+    const email = account.includes("@") ? account : account + "@todowork.app";
+    await signInWithEmailAndPassword(auth, email, byId("password").value);
     login.reset();
   } catch {
     status.textContent = "登入失敗，請確認帳號和密碼後重試。";
