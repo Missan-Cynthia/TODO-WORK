@@ -1,0 +1,67 @@
+.item-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 12px 8px;
+}
+.item-filters button {
+  background: #fff8f5;
+  border-color: #d8bfc5;
+  color: #51362f;
+  min-height: 44px;
+  padding: 6px 9px;
+  font-size: .875rem;
+}
+.item-filters button[aria-pressed="true"] {
+  background: #683e4e;
+  border-color: #683e4e;
+  color: #fff;
+}
+.item-cards {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.item-cards li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, max-content);
+  gap: 8px;
+  padding: 10px;
+  margin: 0;
+  border: 1px solid #e6d4d6;
+  border-radius: 10px;
+  background: #fffbf6;
+  color: #51362f;
+  overflow-wrap: anywhere;
+}
+.item-note {
+  white-space: pre-wrap;
+  margin-top: 5px;
+  color: #684f46;
+  font-size: .875rem;
+}
+.item-note-alert {
+  color: #9b3147;
+  font-weight: 600;
+}
+.item-meta {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 5px;
+  max-width: 6rem;
+  text-align: right;
+  font-size: .875rem;
+  font-variant-numeric: tabular-nums;
+}
+.item-state {
+  background: #f5e2e7;
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+.item-state.arrived {
+  background: #e8eee4;
+  color: #365440;
+}

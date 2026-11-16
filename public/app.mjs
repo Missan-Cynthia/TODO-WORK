@@ -25,6 +25,7 @@ let rows = [];
 let month = "";
 let areas = [];
 let stopListening;
+const itemFilters = new Map();
 
 try {
   salesRegion.value = localStorage.getItem(salesRegionKey) || "";
@@ -48,6 +49,58 @@ function append(parent, tag, value) {
   element.textContent = value;
   parent.append(element);
   return element;
+}
+
+function renderMobileItems(details, row) {
+  const items = row.items || [];
+  const arrived = items.filter(item => item.ready === true).length;
+  const filters = append(details, "div", "");
+  filters.className = "item-filters";
+  filters.setAttribute("role", "group");
+  filters.setAttribute("aria-label", "商品到貨狀態");
+  const list = append(details, "ul", "");
+  list.className = "item-cards";
+  list.setAttribute("role", "list");
+  const empty = append(details, "p", "此分類沒有商品。");
+  empty.setAttribute("role", "status");
+  const buttons = new Map();
+  for (const [value, label, count] of [
+    ["waiting", "待到貨", items.length - arrived],
+    ["arrived", "已到貨", arrived],
+    ["all", "全部", items.length]
+  ]) {
+    const button = append(filters, "button", label + " " + count);
+    button.type = "button";
+    buttons.set(value, button);
+    button.addEventListener("click", () => {
+      itemFilters.set(row.code, value);
+      showItems(value);
+    });
+  }
+
+  function showItems(filter) {
+    for (const [value, button] of buttons) button.setAttribute("aria-pressed", String(value === filter));
+    const visible = items.filter(item => filter === "all" || (item.ready === true) === (filter === "arrived"));
+    list.replaceChildren();
+    empty.hidden = visible.length > 0;
+    for (const item of visible) {
+      const card = append(list, "li", "");
+      const body = append(card, "div", "");
+      append(body, "strong", item.spec || "");
+      const note = typeof item.note === "string" ? item.note.trim() : "";
+      if (note) {
+        const info = append(body, "div", note);
+        info.className = "item-note";
+        if (/來錯|送錯|待換貨|等換|退換貨/.test(note)) info.classList.add("item-note-alert");
+      }
+      const meta = append(card, "div", "");
+      meta.className = "item-meta";
+      append(meta, "strong", "數量 " + item.quantity);
+      const state = append(meta, "span", item.ready === true ? "已到貨" : "待到貨");
+      state.className = item.ready === true ? "item-state arrived" : "item-state";
+    }
+  }
+  showItems(itemFilters.get(row.code) || "waiting");
 }
 
 function render() {
@@ -79,16 +132,15 @@ function render() {
     details.open = expanded.has(row.code);
     append(details, "summary", "地址與商品明細");
     append(details, "p", row.address || "地址待確認");
-    const items = document.createElement("ul");
-    for (const item of row.items || []) {
-      const line = append(items, "li", [item.spec, "數量 " + item.quantity, item.ready ? "已到貨" : "待到貨"].join(" · "));
-      if (mobile.matches && typeof item.note === "string" && item.note.trim()) {
-        const note = append(line, "div", "進貨單號／備註：" + item.note.trim());
-        note.style.whiteSpace = "pre-wrap";
-        note.style.overflowWrap = "anywhere";
+    if (mobile.matches) {
+      renderMobileItems(details, row);
+    } else {
+      const items = document.createElement("ul");
+      for (const item of row.items || []) {
+        append(items, "li", [item.spec, "數量 " + item.quantity, item.ready ? "已到貨" : "待到貨"].join(" · "));
       }
+      details.append(items);
     }
-    details.append(items);
     card.append(details);
     list.append(card);
   }
@@ -122,6 +174,7 @@ login.addEventListener("submit", async event => {
 byId("logout").addEventListener("click", () => signOut(auth));
 onAuthStateChanged(auth, user => {
   if (stopListening) stopListening();
+  itemFilters.clear();
   rows = [];
   month = "";
   areas = [];
