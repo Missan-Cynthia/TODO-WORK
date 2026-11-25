@@ -30,6 +30,9 @@ let stopListening;
 let stopMonth;
 let current;
 let currentMetadata;
+let monthKeys = [];
+let showAllMonths;
+const allMonths = "all";
 const itemFilters = new Map();
 
 try {
@@ -166,6 +169,45 @@ function showMonth(data, metadata) {
   render();
 }
 
+function subscribeAllMonths() {
+  const results = new Map();
+  const keys = monthKeys;
+  showAllMonths = () => {
+    const customers = new Map();
+    const available = [{ data: current, metadata: currentMetadata }, ...keys.filter(key => results.has(key)).map(key => results.get(key))];
+    for (const { data } of available) {
+      for (const row of data?.customers || []) {
+        const code = String(row.code ?? "").trim().toUpperCase();
+        if (!customers.has(code)) customers.set(code, { ...row, ready: 0, waiting: 0, items: [], estimates: new Set() });
+        const customer = customers.get(code);
+        customer.ready += row.ready || 0;
+        customer.waiting += row.waiting || 0;
+        for (const item of row.items || []) customer.items.push(item);
+        if (row.waiting && row.eta) customer.estimates.add(row.eta);
+      }
+    }
+    rows = [...customers.values()].map(customer => ({ ...customer, eta: [...customer.estimates].join("、") }));
+    month = "全部月份";
+    if (results.size < keys.length) status.textContent = "正在取得其他月份的到貨資料…";
+    else if (available.some(result => !result.data)) status.textContent = "部分月份的資料暫時無法取得，查詢結果可能不完整。";
+    else if (available.some(result => result.metadata.fromCache)) status.textContent = "部分月份顯示上次下載的資料。";
+    else status.textContent = "";
+    render();
+  };
+  showAllMonths();
+  const listeners = keys.map(key => onSnapshot(doc(db, "arrivals", key), { includeMetadataChanges: true }, snapshot => {
+    results.set(key, { data: snapshot.data(), metadata: snapshot.metadata });
+    showAllMonths();
+  }, () => {
+    results.set(key, {});
+    showAllMonths();
+  }));
+  return () => {
+    for (const unsubscribe of listeners) unsubscribe();
+    showAllMonths = undefined;
+  };
+}
+
 function subscribeMonth() {
   stopMonth?.();
   stopMonth = undefined;
@@ -173,6 +215,10 @@ function subscribeMonth() {
   const selected = monthSelect.value;
   if (!selected) {
     if (current) showMonth(current, currentMetadata);
+    return;
+  }
+  if (selected === allMonths) {
+    stopMonth = subscribeAllMonths();
     return;
   }
   rows = [];
@@ -225,6 +271,7 @@ onAuthStateChanged(auth, user => {
   stopMonth?.();
   stopMonth = undefined;
   current = undefined;
+  monthKeys = [];
   itemFilters.clear();
   rows = [];
   month = "";
@@ -251,13 +298,19 @@ onAuthStateChanged(auth, user => {
     currentMetadata = snapshot.metadata;
     areas = data.areas || [];
     const previous = monthSelect.value;
-    const months = (Array.isArray(data.months) ? data.months : [])
-      .filter(key => typeof key === "string" && /^\d{3,}-(0[1-9]|1[0-2])$/.test(key));
+    const months = [...new Set((Array.isArray(data.months) ? data.months : [])
+      .filter(key => typeof key === "string" && /^\d{3,}-(0[1-9]|1[0-2])$/.test(key)))];
+    const monthKeysChanged = months.join(",") !== monthKeys.join(",");
+    monthKeys = months;
     monthSelect.replaceChildren(new Option("本期 " + (data.month || ""), ""));
+    monthSelect.add(new Option("全部月份（不分月）", allMonths));
     for (const key of months) monthSelect.add(new Option(key.replace("-", "/"), key));
-    if (months.includes(previous)) monthSelect.value = previous;
+    if (previous === allMonths || months.includes(previous)) monthSelect.value = previous;
     dashboard.hidden = false;
-    if (!monthSelect.value && previous) subscribeMonth();
+    if (monthSelect.value === allMonths) {
+      if (monthKeysChanged || !showAllMonths) subscribeMonth();
+      else showAllMonths();
+    } else if (!monthSelect.value && previous) subscribeMonth();
     else if (!monthSelect.value) showMonth(current, currentMetadata);
     else render();
   }, error => {
