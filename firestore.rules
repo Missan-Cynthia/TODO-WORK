@@ -1,15 +1,30 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /arrivals/current {
-      allow get: if request.auth != null &&
+    function reader() {
+      return request.auth != null &&
         exists(/databases/$(database)/documents/arrivalReaders/$(request.auth.uid));
-      allow create, update: if request.auth != null &&
-        !exists(/databases/$(database)/documents/arrivalReaders/$(request.auth.uid)) &&
-        exists(/databases/$(database)/documents/arrivalPublishers/$(request.auth.uid)) &&
-        request.resource.data.keys().hasOnly(['month', 'areas', 'customers', 'updatedAt']) &&
+    }
+    function publisher() {
+      return request.auth != null && !reader() &&
+        exists(/databases/$(database)/documents/arrivalPublishers/$(request.auth.uid));
+    }
+    match /arrivals/current {
+      allow get: if reader();
+      allow create, update: if publisher() &&
+        request.resource.data.keys().hasOnly(['month', 'months', 'areas', 'customers', 'updatedAt']) &&
         request.resource.data.month is string &&
+        request.resource.data.get('months', []) is list &&
         request.resource.data.areas is list &&
+        request.resource.data.customers is list &&
+        request.resource.data.updatedAt is timestamp;
+    }
+    match /arrivals/{monthId} {
+      allow get: if reader() && monthId.matches('[0-9]{3,}-[0-9]{2}') &&
+        monthId in get(/databases/$(database)/documents/arrivals/current).data.get('months', []);
+      allow create, update: if publisher() && monthId.matches('[0-9]{3,}-[0-9]{2}') &&
+        request.resource.data.keys().hasOnly(['month', 'customers', 'updatedAt']) &&
+        request.resource.data.month is string &&
         request.resource.data.customers is list &&
         request.resource.data.updatedAt is timestamp;
     }

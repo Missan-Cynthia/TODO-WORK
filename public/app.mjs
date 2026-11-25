@@ -20,11 +20,16 @@ const salesRegion = byId("sales-region");
 const mobile = matchMedia("(max-width: 767px) and (pointer: coarse)");
 const salesRegionKey = "todo-work.sales-region";
 const search = byId("search");
+const monthSelect = byId("month");
+const specSearch = byId("spec-search");
 const dashboard = byId("dashboard");
 let rows = [];
 let month = "";
 let areas = [];
 let stopListening;
+let stopMonth;
+let current;
+let currentMetadata;
 const itemFilters = new Map();
 
 try {
@@ -51,7 +56,7 @@ function append(parent, tag, value) {
   return element;
 }
 
-function renderMobileItems(details, row) {
+function renderMobileItems(details, row, searchingSpecs) {
   const items = row.items || [];
   const arrived = items.filter(item => item.ready === true).length;
   const filters = append(details, "div", "");
@@ -100,8 +105,10 @@ function renderMobileItems(details, row) {
       state.className = item.ready === true ? "item-state arrived" : "item-state";
     }
   }
-  showItems(itemFilters.get(row.code) || "waiting");
+  showItems(itemFilters.get(row.code) || (searchingSpecs ? "all" : "waiting"));
 }
+
+const normalizeQuery = text => String(text ?? "").normalize("NFKC").trim().toLowerCase();
 
 function render() {
   const expanded = new Set([...byId("customers").querySelectorAll("details[open]")].map(item => item.dataset.code));
@@ -109,11 +116,14 @@ function render() {
   options(city, sorted([...rows, ...areas].map(row => row.city)), "全部縣市", rows, "city");
   const cityRows = rows.filter(row => !city.value || row.city === city.value);
   options(area, sorted([...cityRows, ...areas.filter(row => !city.value || row.city === city.value)].map(row => row.area)), "全部區域", cityRows, "area");
-  const query = search.value.trim().toLowerCase();
+  const query = normalizeQuery(search.value);
+  const specQuery = normalizeQuery(specSearch.value);
   const region = mobile.matches ? salesRegion.value : "";
   const visible = cityRows.filter(row => (!region || customerRegions.get(String(row.code ?? "").trim().toUpperCase()) === region)
     && (!area.value || row.area === area.value)
-    && (row.code + " " + row.name).toLowerCase().includes(query));
+    && normalizeQuery(row.code + " " + row.name).includes(query))
+    .map(row => specQuery ? { ...row, items: (row.items || []).filter(item => normalizeQuery(item.spec).includes(specQuery)) } : row)
+    .filter(row => !specQuery || row.items.length);
   const ready = visible.filter(row => row.waiting === 0).length;
   const partial = visible.filter(row => row.ready > 0 && row.waiting > 0).length;
   byId("counts").textContent = [month, "未出貨 " + visible.length + " 家", "到齊 " + ready + " 家",
@@ -129,11 +139,11 @@ function render() {
     if (row.waiting) append(card, "p", "預計到貨：" + (row.eta || "待確認"));
     const details = document.createElement("details");
     details.dataset.code = row.code;
-    details.open = expanded.has(row.code);
+    details.open = Boolean(specQuery) || expanded.has(row.code);
     append(details, "summary", "地址與商品明細");
     append(details, "p", row.address || "地址待確認");
     if (mobile.matches) {
-      renderMobileItems(details, row);
+      renderMobileItems(details, row, Boolean(specQuery));
     } else {
       const items = document.createElement("ul");
       for (const item of row.items || []) {
@@ -146,7 +156,45 @@ function render() {
   }
 }
 
+function showMonth(data, metadata) {
+  rows = data?.customers || [];
+  month = data?.month || monthSelect.value.replace("-", "/");
+  const time = data?.updatedAt?.toDate().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
+  status.textContent = data
+    ? (metadata.fromCache ? "目前顯示上次下載的資料。 " : "") + (time ? "最後同步 " + time : "")
+    : "這個月份尚無同步資料。";
+  render();
+}
+
+function subscribeMonth() {
+  stopMonth?.();
+  stopMonth = undefined;
+  itemFilters.clear();
+  const selected = monthSelect.value;
+  if (!selected) {
+    if (current) showMonth(current, currentMetadata);
+    return;
+  }
+  rows = [];
+  month = selected.replace("-", "/");
+  byId("counts").textContent = "";
+  byId("customers").replaceChildren();
+  status.textContent = "正在取得 " + month + " 的到貨資料…";
+  stopMonth = onSnapshot(doc(db, "arrivals", selected), { includeMetadataChanges: true }, snapshot => {
+    showMonth(snapshot.data(), snapshot.metadata);
+  }, () => {
+    rows = [];
+    render();
+    status.textContent = "無法取得這個月份的到貨資料。";
+  });
+}
+
 for (const field of [city, area, search]) field.addEventListener("input", render);
+specSearch.addEventListener("input", () => {
+  itemFilters.clear();
+  render();
+});
+monthSelect.addEventListener("change", subscribeMonth);
 salesRegion.addEventListener("change", () => {
   try {
     localStorage.setItem(salesRegionKey, salesRegion.value);
@@ -174,11 +222,16 @@ login.addEventListener("submit", async event => {
 byId("logout").addEventListener("click", () => signOut(auth));
 onAuthStateChanged(auth, user => {
   if (stopListening) stopListening();
+  stopMonth?.();
+  stopMonth = undefined;
+  current = undefined;
   itemFilters.clear();
   rows = [];
   month = "";
   areas = [];
   search.value = "";
+  specSearch.value = "";
+  monthSelect.replaceChildren();
   render();
   dashboard.hidden = true;
   login.hidden = Boolean(user);
@@ -188,18 +241,28 @@ onAuthStateChanged(auth, user => {
   stopListening = onSnapshot(doc(db, "arrivals", "current"), { includeMetadataChanges: true }, snapshot => {
     const data = snapshot.data();
     if (!data) {
+      stopMonth?.();
+      stopMonth = undefined;
       dashboard.hidden = true;
       status.textContent = snapshot.metadata.fromCache ? "尚未連線到伺服器。" : "出貨端尚未同步資料。";
       return;
     }
-    rows = data.customers || [];
+    current = data;
+    currentMetadata = snapshot.metadata;
     areas = data.areas || [];
-    month = data.month || "";
-    const time = data.updatedAt?.toDate().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
-    status.textContent = (snapshot.metadata.fromCache ? "目前顯示上次下載的資料。 " : "") + (time ? "最後同步 " + time : "");
+    const previous = monthSelect.value;
+    const months = (Array.isArray(data.months) ? data.months : [])
+      .filter(key => typeof key === "string" && /^\d{3,}-(0[1-9]|1[0-2])$/.test(key));
+    monthSelect.replaceChildren(new Option("本期 " + (data.month || ""), ""));
+    for (const key of months) monthSelect.add(new Option(key.replace("-", "/"), key));
+    if (months.includes(previous)) monthSelect.value = previous;
     dashboard.hidden = false;
-    render();
+    if (!monthSelect.value && previous) subscribeMonth();
+    else if (!monthSelect.value) showMonth(current, currentMetadata);
+    else render();
   }, error => {
+    stopMonth?.();
+    stopMonth = undefined;
     dashboard.hidden = true;
     status.textContent = error.code === "permission-denied" ? "這個帳號沒有查看權限。" : "無法取得到貨資料，請重試。";
   });
