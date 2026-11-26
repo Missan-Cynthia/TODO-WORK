@@ -31,7 +31,7 @@ function element(tag, content, className) {
 
 export function mountCustomerOrders(root) {
   root.innerHTML = `
-    <h2>HC0759 未出貨訂單</h2>
+    <h2>亞泰金屬 未出貨訂單</h2>
     <div class="filters">
       <label>交貨月份<select data-period></select></label>
       <label>排序<select data-sort>

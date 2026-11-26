@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 import { customerRegions } from "./customer-regions.mjs";
 
-import { mountCustomerOrders } from "./customer-orders.mjs?v=order-search";
+import { mountCustomerOrders } from "./customer-orders.mjs?v=site-name";
 
 const app = initializeApp({
   apiKey: "AIzaSyDArt35JrQw1_Re9UgLzUMC7MOOeCRP0AY",
