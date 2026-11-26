@@ -3,14 +3,17 @@ const compareDate = (a, b) => (a || "9999-99-99").localeCompare(b || "9999-99-99
 const periodValue = period => /^\d{3,}\/(0[1-9]|1[0-2])$/.test(period || "")
   ? Number(period.replace("/", "")) : NaN;
 
-export function customerOrders(lines, period, sort) {
+const normalizeOrderNumber = value => (value ?? "").normalize("NFKC").trim().toLowerCase();
+
+export function customerOrders(lines, period, sort, search = "") {
+  const query = normalizeOrderNumber(search);
   const groups = new Map();
   for (const line of lines) {
     if (period && !(periodValue(line.period) <= periodValue(period))) continue;
     if (!groups.has(line.group)) groups.set(line.group, { number: line.number, items: [] });
     groups.get(line.group).items.push(line);
   }
-  const orders = [...groups.values()];
+  const orders = [...groups.values()].filter(order => normalizeOrderNumber(order.number).includes(query));
   for (const order of orders) {
     order.items.sort((a, b) => compareDate(a.dateKey, b.dateKey));
   }
@@ -36,19 +39,23 @@ export function mountCustomerOrders(root) {
         <option value="date">交期</option>
       </select></label>
     </div>
+    <label class="customer-order-search">搜尋客戶訂單號碼
+      <input type="search" data-order-search placeholder="輸入完整或部分單號" autocomplete="off" autocapitalize="none" spellcheck="false">
+    </label>
     <p data-count role="status"></p>
     <div class="customer-orders" data-orders></div>`;
   const period = root.querySelector("[data-period]");
   const sort = root.querySelector("[data-sort]");
+  const search = root.querySelector("[data-order-search]");
   const count = root.querySelector("[data-count]");
   const list = root.querySelector("[data-orders]");
   let current = "";
   let lines = [];
   function render() {
-    const orders = customerOrders(lines, period.value === "current" ? current : (period.value === "all" ? "" : period.value), sort.value);
+    const orders = customerOrders(lines, period.value === "current" ? current : (period.value === "all" ? "" : period.value), sort.value, search.value);
     count.textContent = orders.length
       ? `${orders.length} 張訂單・${orders.reduce((total, order) => total + order.items.length, 0)} 筆商品`
-      : "這個期別目前沒有未出貨訂單。";
+      : (search.value.trim() ? "這個期別找不到符合單號的訂單。" : "這個期別目前沒有未出貨訂單。");
     list.replaceChildren(...orders.map(order => {
       const card = element("article");
       const heading = element("header", "", "customer-order-heading");
@@ -84,10 +91,7 @@ export function mountCustomerOrders(root) {
         items.replaceChildren(...visible.map(item => {
           const row = element("li");
           const details = element("div");
-          details.append(
-            element("strong", item.spec || "未填商品規格"),
-            element("div", "預交 " + (item.date || "未填"), "item-note")
-          );
+          details.append(element("strong", item.spec || "未填商品規格"));
           const meta = element("div", "", "item-meta");
           meta.append(
             element("strong", "數量 " + item.quantity),
@@ -105,6 +109,7 @@ export function mountCustomerOrders(root) {
   }
   period.addEventListener("change", render);
   sort.addEventListener("change", render);
+  search.addEventListener("input", render);
   return {
     show(data) {
       const previous = period.value || "current";
@@ -123,6 +128,7 @@ export function mountCustomerOrders(root) {
     },
     clear() {
       root.hidden = true;
+      search.value = "";
       lines = [];
       list.replaceChildren();
       period.replaceChildren();

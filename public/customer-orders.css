@@ -29,3 +29,11 @@
     width: 100%;
   }
 }
+
+.customer-order-search {
+  margin-top: 12px;
+}
+.customer-order-search input {
+  width: 100%;
+  min-height: 44px;
+}
