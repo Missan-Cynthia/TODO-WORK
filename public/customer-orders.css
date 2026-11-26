@@ -1,0 +1,31 @@
+.customer-orders article:nth-child(even) {
+  background: #faf3f5;
+}
+.customer-orders .customer-order-heading {
+  display: grid;
+  gap: 4px 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.customer-order-heading span {
+  color: #645969;
+  font-size: .875rem;
+  grid-column: 1 / -1;
+}
+.customer-order-heading h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.customer-order-heading small,
+.customer-orders .item-meta {
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  #customer-dashboard .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #customer-dashboard select {
+    min-height: 44px;
+    width: 100%;
+  }
+}

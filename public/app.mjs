@@ -3,6 +3,8 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 import { customerRegions } from "./customer-regions.mjs";
 
+import { mountCustomerOrders } from "./customer-orders.mjs?v=shared-style";
+
 const app = initializeApp({
   apiKey: "AIzaSyDArt35JrQw1_Re9UgLzUMC7MOOeCRP0AY",
   authDomain: "todo-work-274d2.firebaseapp.com",
@@ -26,6 +28,8 @@ const dashboard = byId("dashboard");
 let rows = [];
 let month = "";
 let areas = [];
+const customerDashboard = mountCustomerOrders(byId("customer-dashboard"));
+let stopRole;
 let stopListening;
 let stopMonth;
 let current;
@@ -267,7 +271,10 @@ login.addEventListener("submit", async event => {
 });
 byId("logout").addEventListener("click", () => signOut(auth));
 onAuthStateChanged(auth, user => {
-  if (stopListening) stopListening();
+  stopRole?.();
+  stopListening?.();
+  stopListening = undefined;
+  customerDashboard.clear();
   stopMonth?.();
   stopMonth = undefined;
   current = undefined;
@@ -285,6 +292,47 @@ onAuthStateChanged(auth, user => {
   byId("logout").hidden = !user;
   status.textContent = user ? "正在取得到貨資料…" : "請使用已授權的帳號登入。";
   if (!user) return;
+  stopRole = onSnapshot(doc(db, "customerReaders", user.uid), { includeMetadataChanges: true }, role => {
+    if (role.metadata.fromCache) return;
+    stopListening?.();
+    stopListening = undefined;
+    stopMonth?.();
+    stopMonth = undefined;
+    customerDashboard.clear();
+    dashboard.hidden = true;
+    status.textContent = "正在取得到貨資料…";
+    if (!role.exists()) {
+      subscribeStaffDashboard();
+      return;
+    }
+    const access = role.data();
+    if (access.enabled !== true || access.customerNo !== "HC0759") {
+      status.textContent = "這個帳號沒有查看權限。";
+      return;
+    }
+    stopListening = onSnapshot(doc(db, "customerArrivals", access.customerNo), { includeMetadataChanges: true }, snapshot => {
+      if (snapshot.metadata.fromCache) return;
+      if (!snapshot.exists()) {
+        customerDashboard.clear();
+        status.textContent = "出貨端尚未同步 HC0759 的訂單。";
+        return;
+      }
+      customerDashboard.show(snapshot.data());
+      status.textContent = "";
+    }, () => {
+      customerDashboard.clear();
+      status.textContent = "無法取得 HC0759 的訂單，請重新登入。";
+    });
+  }, () => {
+    stopListening?.();
+    stopMonth?.();
+    customerDashboard.clear();
+    dashboard.hidden = true;
+    status.textContent = "無法確認帳號權限，請重新登入。";
+  });
+});
+
+function subscribeStaffDashboard() {
   stopListening = onSnapshot(doc(db, "arrivals", "current"), { includeMetadataChanges: true }, snapshot => {
     const data = snapshot.data();
     if (!data) {
@@ -319,4 +367,4 @@ onAuthStateChanged(auth, user => {
     dashboard.hidden = true;
     status.textContent = error.code === "permission-denied" ? "這個帳號沒有查看權限。" : "無法取得到貨資料，請重試。";
   });
-});
+}
