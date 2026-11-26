@@ -63,7 +63,7 @@ function append(parent, tag, value) {
   return element;
 }
 
-function renderMobileItems(details, row, searchingSpecs) {
+function renderItemCards(details, row, showAllByDefault) {
   const items = row.items || [];
   const arrived = items.filter(item => item.ready === true).length;
   const filters = append(details, "div", "");
@@ -112,7 +112,7 @@ function renderMobileItems(details, row, searchingSpecs) {
       state.className = item.ready === true ? "item-state arrived" : "item-state";
     }
   }
-  showItems(itemFilters.get(row.code) || (searchingSpecs ? "all" : "waiting"));
+  showItems(itemFilters.get(row.code) || (showAllByDefault ? "all" : "waiting"));
 }
 
 const normalizeQuery = text => String(text ?? "").normalize("NFKC").trim().toLowerCase();
@@ -149,15 +149,7 @@ function render() {
     details.open = Boolean(specQuery) || expanded.has(row.code);
     append(details, "summary", "地址與商品明細");
     append(details, "p", row.address || "地址待確認");
-    if (mobile.matches) {
-      renderMobileItems(details, row, Boolean(specQuery));
-    } else {
-      const items = document.createElement("ul");
-      for (const item of row.items || []) {
-        append(items, "li", [item.spec, "數量 " + item.quantity, item.ready ? "已到貨" : "待到貨"].join(" · "));
-      }
-      details.append(items);
-    }
+    renderItemCards(details, row, !mobile.matches || Boolean(specQuery));
     card.append(details);
     list.append(card);
   }
